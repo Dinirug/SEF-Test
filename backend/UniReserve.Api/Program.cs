@@ -9,9 +9,16 @@ using UniReserve.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Bind to dynamic Railway PORT or default 8080
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-builder.WebHost.UseUrls($"http://+:{port}");
+// Bind to dynamic Railway PORT or all standard cloud ports (8080, 80, 5000)
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}", $"http://+:{port}");
+}
+else
+{
+    builder.WebHost.UseUrls("http://0.0.0.0:8080", "http://0.0.0.0:80", "http://0.0.0.0:5000", "http://+:8080", "http://+:80");
+}
 
 // Add Database Context
 var connectionString = GetNormalizedPostgresConnectionString(builder.Configuration);
