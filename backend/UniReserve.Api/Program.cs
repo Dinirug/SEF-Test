@@ -9,6 +9,10 @@ using UniReserve.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Bind to dynamic Railway PORT or default 8080
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://+:{port}");
+
 // Add Database Context
 var connectionString = GetNormalizedPostgresConnectionString(builder.Configuration);
 
@@ -133,6 +137,11 @@ app.UseCors("AllowAll");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/", () => Results.Redirect("/swagger"));
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "UniReserve API", timestamp = DateTime.UtcNow }));
+
+app.MapControllers();
 
 app.Run();
 
