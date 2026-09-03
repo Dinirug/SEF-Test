@@ -138,12 +138,31 @@ app.Run();
 
 static string GetNormalizedPostgresConnectionString(IConfiguration config)
 {
-    var connStr = config.GetConnectionString("DefaultConnection") 
-        ?? config["DATABASE_URL"] 
+    // Check all possible environment variable sources
+    var connStr = Environment.GetEnvironmentVariable("DATABASE_URL")
+        ?? Environment.GetEnvironmentVariable("POSTGRES_URL")
+        ?? Environment.GetEnvironmentVariable("DATABASE_PUBLIC_URL")
+        ?? Environment.GetEnvironmentVariable("DATABASE_PRIVATE_URL")
+        ?? config.GetConnectionString("DefaultConnection")
+        ?? config["DATABASE_URL"]
         ?? config["POSTGRES_URL"];
+
+    // Check individual Railway PG environment variables
+    var pgHost = Environment.GetEnvironmentVariable("PGHOST");
+    var pgPort = Environment.GetEnvironmentVariable("PGPORT") ?? "5432";
+    var pgDb = Environment.GetEnvironmentVariable("PGDATABASE") ?? "railway";
+    var pgUser = Environment.GetEnvironmentVariable("PGUSER") ?? "postgres";
+    var pgPass = Environment.GetEnvironmentVariable("PGPASSWORD");
+
+    if (!string.IsNullOrEmpty(pgHost) && !string.IsNullOrEmpty(pgPass))
+    {
+        Console.WriteLine($"[DATABASE CONFIG] Using Railway PGHOST environment variables. Connecting to Host: {pgHost}, Port: {pgPort}, Database: {pgDb}, User: {pgUser}");
+        return $"Host={pgHost};Port={pgPort};Database={pgDb};Username={pgUser};Password={pgPass};Include Error Detail=true;SSL Mode=Prefer";
+    }
 
     if (string.IsNullOrEmpty(connStr))
     {
+        Console.WriteLine("[DATABASE CONFIG] No remote DATABASE_URL found. Falling back to local localhost:5432.");
         return "Host=localhost;Port=5432;Database=unireserve_db;Username=postgres;Password=postgres123;Include Error Detail=true";
     }
 
@@ -157,13 +176,16 @@ static string GetNormalizedPostgresConnectionString(IConfiguration config)
             var password = userInfo.Length > 1 ? userInfo[1] : "";
             var database = uri.AbsolutePath.TrimStart('/');
             var port = uri.Port > 0 ? uri.Port : 5432;
-            return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};Include Error Detail=true";
+            Console.WriteLine($"[DATABASE CONFIG] Parsed Railway URI -> Host: {uri.Host}, Port: {port}, Database: {database}, User: {username}");
+            return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};Include Error Detail=true;SSL Mode=Prefer";
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"[DATABASE CONFIG] Warning: URI parse error ({ex.Message}), passing connection string as is.");
             return connStr;
         }
     }
 
+    Console.WriteLine($"[DATABASE CONFIG] Using standard ADO.NET connection string.");
     return connStr;
 }
