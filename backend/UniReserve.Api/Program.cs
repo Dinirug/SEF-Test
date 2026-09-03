@@ -134,6 +134,11 @@ app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/", () => Results.Redirect("/swagger"));
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "UniReserve API", timestamp = DateTime.UtcNow }));
+
+app.MapControllers();
+
 app.Run();
 
 static string GetNormalizedPostgresConnectionString(IConfiguration config)
